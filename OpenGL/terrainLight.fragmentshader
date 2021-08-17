@@ -1,0 +1,148 @@
+#version 330 core
+ 
+ // Interpolated values from the vertex shaders
+in vec2 UV;
+in vec3 Position_worldspace;
+in vec3 Normal_cameraspace;
+in vec3 EyeDirection_cameraspace;
+in vec3 LightDirection_cameraspace;
+
+in float height;
+// Ouput data
+out vec4 color;
+ 
+uniform mat4 MV;
+uniform vec3 LightPosition_worldspace;
+
+
+// Values that stay constant for the whole mesh.
+uniform sampler2D grass;
+uniform sampler2D sand;
+uniform sampler2D rock;
+uniform sampler2D snow;
+ 
+float rand(vec2 co, int id){
+       // return sin(co.x)*cos(co.y)*sin(co.x/2)*cos(co.y/3);
+	   if(id == 1)
+	   return sin(co.x*3)*cos(co.y*3)*sin(co.x/2)*cos(co.y/3)*6;
+	   if(id == 2)
+	   return sin(co.x)*cos(co.y);
+}      
+ 
+vec4 mixValues(vec4 a, vec4 b, float k){
+        return vec4( k*a[0]+(1-k)*b[0], k*a[1]+(1-k)*b[1], k*a[2]+(1-k)*b[2], k*a[3]+(1-k)*b[3] );
+}
+ 
+bool inRange(float what, float low, float high){
+        return what >= low && what < high;
+}
+ 
+void main(){
+		
+		vec4 LightColor = vec4(1.0,1.0,1.0, 1.0);
+		float LightPower = 5000.0f;
+	
+
+		vec4 MaterialDiffuseColor = vec4(0.9, 0.4, 0.9, 1.0);
+		vec4 MaterialAmbiantColor = vec4(0.5,0.5,0.5, 1.0) * MaterialDiffuseColor;
+		vec4 MaterialSpecularColor = vec4(0.1,0.1,0.1, 1.0);
+		float distance = length( LightPosition_worldspace - Position_worldspace );
+
+
+		vec3 n1 = normalize( Normal_cameraspace);
+		vec4 n = vec4(n1, 1);
+
+		vec3 l1 = normalize( LightDirection_cameraspace );
+		vec4 l = vec4(l1, 1);
+
+		float cosTheta = clamp( dot( n,l ), 0,1 );
+	
+
+		vec3 E1 = normalize(EyeDirection_cameraspace);
+
+		vec4 E = vec4(normalize(EyeDirection_cameraspace), 1);
+
+		vec4 R = reflect(-l,n);
+
+		float cosAlpha = clamp( dot( E,R ), 0,1 );
+
+        vec4 sandC = texture2D(sand, UV);
+        vec4 grassC = texture2D(grass, UV);
+        vec4 rockC = texture2D(rock, UV);
+        vec4 snowC = texture2D(snow, UV);
+       
+	  
+    //    float change = rand(UV, 2)*8.0F;
+    //    float change2 = rand(UV, 1)*4.0F;
+		  float change = 0;
+		  float change2 = 0;
+		             
+		float z1a = -64 + change; // sand to grass
+        float z1b = -63 + change;
+     // float z1a = -65 + change; // sand to grass
+  //    float z1b = -62 + change;
+               
+        float z2a = -30 + change2; // grass to rock
+        float z2b = -25 + change2;
+ 
+        float z3a = 60 + change2; // rock to snow
+        float z3b = 66 + change2;
+ 
+        if(height < z1a){
+                MaterialDiffuseColor = sandC;
+			
+               
+        }else if(inRange(height, z1a, z1b)){
+               
+                // sand to grass
+                float f = (height - z1a) / (z1b-z1a);
+				MaterialDiffuseColor = mixValues(grassC, sandC, f);
+              
+        }else if(inRange(height, z1b, z2a)){  
+               
+                // grass
+				MaterialDiffuseColor = grassC;
+           
+               
+        }else if(inRange(height, z2a, z2b)){
+               
+                // grass to rock
+                float f = (height - z2a) / (z2b-z2a);
+				MaterialDiffuseColor = mixValues(rockC, grassC, f);
+            
+ 
+        }else if(inRange(height, z2b, z3a)){
+               
+                // rock
+				MaterialDiffuseColor = rockC;
+             
+               
+        }else if(inRange(height, z3a, z3b)){
+               
+                // rock to snow
+                float f = (height - z3a) / (z3b-z3a);   
+				MaterialDiffuseColor =  mixValues(snowC, rockC, f);      
+            
+               
+        }else if(height > z3b){
+               
+                // snow
+				MaterialDiffuseColor = snowC;
+              
+               
+        }
+
+	//	MaterialAmbiantColor = vec4(0.01,0.01,0.01, 1.0) * MaterialDiffuseColor;
+		MaterialAmbiantColor = vec4(0.5,0.5,0.5, 1.0) * MaterialDiffuseColor;
+		
+		color =
+		// Ambiant : simulates indirect lighting
+		MaterialAmbiantColor +
+		// Diffuse : "color" of the object
+		MaterialDiffuseColor * LightColor * LightPower * cosTheta / (distance*distance) +
+		// Specular : reflective highlight, like a mirror
+		MaterialSpecularColor * LightColor * LightPower * pow(cosAlpha,5) / (distance*distance);
+		
+
+	
+}

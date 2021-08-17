@@ -1,0 +1,88 @@
+#version 330 core
+ 
+// Interpolated values from the vertex shaders
+in vec2 UV;
+in float height;
+// Ouput data
+out vec4 color;
+ 
+// Values that stay constant for the whole mesh.
+uniform sampler2D grass;
+uniform sampler2D sand;
+uniform sampler2D rock;
+uniform sampler2D snow;
+ 
+float rand(vec2 co){
+       // return sin(co.x)*cos(co.y)*sin(co.x/2)*cos(co.y/3);
+	  // return sin(co.x*3)*cos(co.y*3)*sin(co.x/2)*cos(co.y/3)*3;
+	   return sin(co.x)*cos(co.y);
+}      
+ 
+vec4 mixValues(vec4 a, vec4 b, float k){
+        return vec4( k*a[0]+(1-k)*b[0], k*a[1]+(1-k)*b[1], k*a[2]+(1-k)*b[2], k*a[3]+(1-k)*b[3] );
+}
+ 
+bool inRange(float what, float low, float high){
+        return what >= low && what < high;
+}
+ 
+void main(){
+ 
+        vec4 sandC = texture2D(sand, UV);
+        vec4 grassC = texture2D(grass, UV);
+        vec4 rockC = texture2D(rock, UV);
+        vec4 snowC = texture2D(snow, UV);
+       
+        float change = rand(UV)*8.0F;
+         
+		             
+		float z1a = -64 + change; // sand to grass
+        float z1b = -63 + change;
+     //   float z1a = -65 + change; // sand to grass
+  //      float z1b = -62 + change;
+               
+        float z2a = -30 + change; // grass to rock
+        float z2b = -25 + change;
+ 
+        float z3a = 70 + change; // rock to snow
+        float z3b = 76 + change;
+ 
+        if(height < z1a){
+               
+				color = sandC; // sand
+               
+        }else if(inRange(height, z1a, z1b)){
+               
+                // sand to grass
+                float f = (height - z1a) / (z1b-z1a);
+                color = mixValues(grassC, sandC, f);
+               
+        }else if(inRange(height, z1b, z2a)){  
+               
+                // grass
+                color = grassC;
+               
+        }else if(inRange(height, z2a, z2b)){
+               
+                // grass to rock
+                float f = (height - z2a) / (z2b-z2a);
+                color = mixValues(rockC, grassC, f);
+ 
+        }else if(inRange(height, z2b, z3a)){
+               
+                // rock
+                color = rockC;
+               
+        }else if(inRange(height, z3a, z3b)){
+               
+                // rock to snow
+                float f = (height - z3a) / (z3b-z3a);          
+                color = mixValues(snowC, rockC, f);
+               
+        }else if(height > z3b){
+               
+                // snow
+                color = snowC;
+               
+        }
+}
